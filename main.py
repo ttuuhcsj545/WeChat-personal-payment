@@ -1,18 +1,20 @@
 from match_screen_template import match_screen_template
 from detect_qrcode_from_screen import detect_qrcode_from_screen
 from WeChat_status import get_wechat_window_info
+from detect_color_position import sift_match_on_screen
+from color import is_color_match_at_offset
 import os
 def start():
-    if get_wechat_window_info():
-        is_ma1,ssc1,hhh1=match_screen_template("res/Payment box-selected.png")
-        if is_ma1:
-            return "001"#状态正常
+    if get_wechat_window_info():#检测微信登录状态
+        zhi ,zuobiao= sift_match_on_screen("res/small.png")
+        if zhi:
+            if is_color_match_at_offset(zuobiao, (210, 210, 210)): #检测是否选中
+                return "001"#已选中对话框
+            else:
+               return "004"#未选中对话框
         else:
-            is_ma2,ssc2,hhh2=match_screen_template("res/Payment box.png")
-        if is_ma2:
-            return "003",ssc2#未选中
-        else:
-            return "404"#未知
+            return "005"#未置顶
+        
     else:
         uis=detect_qrcode_from_screen()
         if uis ==False:
@@ -22,6 +24,7 @@ def start():
             else:
                 return "404_1"#未知
         else:
+            
             return "002",uis
 
 

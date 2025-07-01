@@ -1,52 +1,62 @@
 import cv2
 import numpy as np
 import mss
-def get_top_left_quadrant():
-    import mss
-    monitor = mss.mss().monitors[1]  # 主屏幕
-    w = monitor['width']
-    h = monitor['height']
-    return (0, 0, w // 2, h // 2)  # (left, top, width, height)
-def detect_color_position(target_color, region=None, tolerance=5):
-    """
-    检测屏幕或指定区域内是否存在指定颜色。
 
-    参数:
-        target_color: (R, G, B) 要检测的颜色
-        region: (x, y, w, h) 指定区域，若为 None 则使用整个屏幕
-        tolerance: 颜色容差（默认 ±20）
+def sift_match_on_screen(template_path, min_match_count=50, tolerance=0.75):
+    # 读取小图（模板）
+    img_template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
+    if img_template is None:
+        return None,None
 
-    返回:
-        若检测到，返回 (x, y) 屏幕绝对坐标
-        否则返回 False
-    """
+    # 获取屏幕截图
     with mss.mss() as sct:
-        # 使用整个屏幕
-        if region is None:
-            monitor = sct.monitors[1]  # 第一个是所有屏幕的合并区域，第1号是主屏幕
-            region = (monitor["left"], monitor["top"], monitor["width"], monitor["height"])
+        monitor = sct.monitors[1]  # 全屏
+        screenshot = np.array(sct.grab(monitor))[:, :, :3]
+        img_screen = cv2.cvtColor(screenshot, cv2.COLOR_RGB2GRAY)
+
+    # 初始化 SIFT
+    sift = cv2.SIFT_create()
+
+    # 检测关键点和描述符
+    kp1, des1 = sift.detectAndCompute(img_template, None)
+    kp2, des2 = sift.detectAndCompute(img_screen, None)
+
+    if des1 is None or des2 is None:
+        return None,None
+
+    # BF + KNN + Ratio Test
+    bf = cv2.BFMatcher()
+    matches = bf.knnMatch(des1, des2, k=2)
+
+    good = []
+    for m, n in matches:
+        if m.distance < tolerance * n.distance:
+            good.append(m)
+
+    if len(good) >= min_match_count:
+        # 获取匹配点坐标
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+
+        # 计算单应性矩阵
+        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+
+        if M is not None:
+            h, w = img_template.shape
+            pts = np.float32([[0,0],[w,0],[w,h],[0,h]]).reshape(-1,1,2)
+            dst = cv2.perspectiveTransform(pts, M)
+
+            # 获取四个角坐标（返回整数）
+            corners = [(int(p[0][0]), int(p[0][1])) for p in dst]
+            return True , corners[0] 
+           
+        else:
         
-        # 截图
-        screenshot = np.array(sct.grab({
-            "left": region[0],
-            "top": region[1],
-            "width": region[2],
-            "height": region[3]
-        }))[:, :, :3]  # RGB
-
-    lower = np.array([max(c - tolerance, 0) for c in target_color])
-    upper = np.array([min(c + tolerance, 255) for c in target_color])
-    
-    mask = cv2.inRange(screenshot, lower, upper)
-    coords = cv2.findNonZero(mask)
-    print("匹配像素数：", len(coords) if coords is not None else 0)
-
-    if coords is not None:
-        pt = coords[0][0]  # 第一个匹配点
-        abs_x = region[0] + pt[0]
-        abs_y = region[1] + pt[1]
-        return (abs_x, abs_y)
+            return None,None
     else:
-        return False
-aaa=(9,196,250)
-print(detect_color_position(aaa,get_top_left_quadrant()))
+        return None,None
+
+# 调用
+# coords,qwe = sift_match_on_screen("res/small.png")
+# print(coords)
+# print(qwe)

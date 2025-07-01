@@ -14,3 +14,4 @@ def get_wechat_window_info():
         'height': win.height
     }
     return win.width>=500 and win.height>=500
+# print(get_wechat_window_info())
