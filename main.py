@@ -4,7 +4,7 @@ from detect_color_position import sift_match_on_screen
 from color import is_color_match_at_offset
 def start():
     if get_wechat_window_info():#检测微信登录状态
-        zhi ,zuobiao= sift_match_on_screen("res/"small.png)
+        zhi ,zuobiao= sift_match_on_screen("res/small.png")
         if zhi:
             if is_color_match_at_offset(zuobiao, (210, 210, 210)): #检测是否选中
                 return "001"#已选中对话框
