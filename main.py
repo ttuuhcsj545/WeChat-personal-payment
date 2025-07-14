@@ -19,10 +19,9 @@ import cv2
 import easyocr
 
 try:
-    import pygetwindow as gw  # 仅 Windows/macOS 用
-except ImportError:
-    gw = None
-
+    import pygetwindow as gw          # Windows/macOS 能用
+except (ImportError, NotImplementedError):
+    gw = None                         # Linux 走这里
 # ============ 全局配置 ============
 WHITELIST = set("微信收款助手切换账号当前退出登录正在进入机")
 DB_PATH = Path(__file__).with_suffix(".db")
